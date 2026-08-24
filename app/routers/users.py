@@ -50,12 +50,12 @@ def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="User is blocked"
         )
 
-    token_data = {"sub": user.email, "id": user.id, "role": user.role}
+    token_data = {"sub": str(user.id), "email": user.email, "role": user.role}
     access_token = create_access_token(token_data)
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
 
 
-# эти 2 эндпоинта только для свагера
+# этот эндпоинт только для свагера
 @router.post("/swagger-login", include_in_schema=False)
 def swagger_login(user_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.username).first()
@@ -75,9 +75,3 @@ def swagger_login(user_data: OAuth2PasswordRequestForm = Depends(), db: Session 
     token_data = {"sub": user.email, "id": user.id, "role": user.role}
     access_token = create_access_token(token_data)
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/swagger-login")
-
-@router.get("/me")
-def get_me(token: str = Depends(oauth2_scheme)):
-    return {"token": token}
