@@ -36,9 +36,9 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
-    type = Column(String, unique=True, index=True, nullable=False) # deposit, withdraw or transfer
+    type = Column(String, index=True, nullable=False) # deposit, withdraw or transfer
     amount = Column(Numeric(precision=18, scale=8), nullable=False)
-    status = Column(String, unique=True, index=True, nullable=False) # pending, completed or failed
-    sender = Column(String, unique=True, index=True, nullable=False)
-    receiver = Column(String, unique=True, index=True, nullable=True)
+    status = Column(String, index=True, nullable=False) # pending, completed or failed
+    sender = Column(String, index=True, nullable=True)
+    receiver = Column(String, index=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
