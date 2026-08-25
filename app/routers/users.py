@@ -60,12 +60,6 @@ def swagger_login(user_data: OAuth2PasswordRequestForm = Depends(), db: Session 
             detail="Wrong email or password"
         )
 
-    if user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User is blocked"
-        )
-
     token_data = {"sub": user.email, "id": user.id, "role": user.role}
     access_token = create_access_token(token_data)
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}

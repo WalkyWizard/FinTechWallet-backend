@@ -4,7 +4,7 @@ from typing import List
 from app.database.session import get_db
 from app.database.models import User, Wallet
 from app.schemas.wallets import WalletCreate, WalletResponse
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_current_user_allow_blocked
 
 router = APIRouter(prefix="/wallets", tags=["Wallets"])
 
@@ -15,12 +15,6 @@ def create_wallet(wallet_data: WalletCreate, db: Session = Depends(get_db), curr
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Wallet with this address already exists"
-        )
-
-    if current_user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is blocked"
         )
 
     new_wallet = Wallet(
@@ -36,11 +30,11 @@ def create_wallet(wallet_data: WalletCreate, db: Session = Depends(get_db), curr
     return new_wallet
 
 @router.get("/user", response_model=List[WalletResponse])
-def get_user_wallets(current_user: User = Depends(get_current_user)):
+def get_user_wallets(current_user: User = Depends(get_current_user_allow_blocked)):
     return current_user.wallets
 
 @router.get("/user/{wallet_id}", response_model=WalletResponse)
-def get_single_wallet(wallet_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_single_wallet(wallet_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_allow_blocked)):
     wallet = db.query(Wallet).filter(Wallet.id == wallet_id, Wallet.user_id == current_user.id).first()
 
     if not wallet:

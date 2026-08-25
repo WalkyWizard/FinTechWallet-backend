@@ -6,7 +6,7 @@ from decimal import Decimal
 from app.database.session import get_db
 from app.database.models import User, Wallet, Transaction
 from app.schemas.transactions import TransactionRequest, TransactionResponse, TransferRequest
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_current_user_allow_blocked
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 FEE_PERCENT = Decimal("0.02")
@@ -14,12 +14,6 @@ FEE_PERCENT = Decimal("0.02")
 @router.post("/deposit", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 def deposit_funds(data: TransactionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     wallet = db.query(Wallet).filter(Wallet.id == data.wallet_id, Wallet.user_id == current_user.id).first()
-
-    if current_user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is blocked"
-        )
 
     if not wallet:
         raise HTTPException(
@@ -43,12 +37,6 @@ def deposit_funds(data: TransactionRequest, db: Session = Depends(get_db), curre
 @router.post("/withdraw", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 def withdraw_funds(data: TransactionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     wallet = db.query(Wallet).filter(Wallet.id == data.wallet_id, Wallet.user_id == current_user.id).first()
-
-    if current_user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is blocked"
-        )
 
     if not wallet:
         raise HTTPException(
@@ -82,12 +70,6 @@ def withdraw_funds(data: TransactionRequest, db: Session = Depends(get_db), curr
 def initiate_transfer(data: TransferRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     sender_wallet = db.query(Wallet).filter(Wallet.id == data.sender_wallet_id, Wallet.user_id == current_user.id).first()
 
-    if current_user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is blocked"
-        )
-
     if not sender_wallet:
         raise HTTPException(status_code=404, detail="Sender wallet not found")
     if sender_wallet.wallet_address == data.receiver_address:
@@ -119,24 +101,12 @@ def initiate_transfer(data: TransferRequest, db: Session = Depends(get_db), curr
 
 @router.get("/pending", response_model=List[TransactionResponse])
 def get_pending_transfers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is blocked"
-        )
-
     user_addresses = [wallet.wallet_address for wallet in current_user.wallets]
     pending = db.query(Transaction).filter(Transaction.receiver.in_(user_addresses), Transaction.status == "pending", Transaction.type == "transfer").all()
     return pending
 
 @router.post("/{transaction_id}/accept")
 def accept_transfer(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is blocked"
-        )
-
     tx = db.query(Transaction).filter(Transaction.id == transaction_id, Transaction.status == "pending", Transaction.type == "transfer").first()
     if not tx:
         raise HTTPException(status_code=404, detail="Pending transaction not found")
@@ -152,12 +122,6 @@ def accept_transfer(transaction_id: int, db: Session = Depends(get_db), current_
 
 @router.post("/{transaction_id}/reject")
 def reject_transfer(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is blocked"
-        )
-
     tx = db.query(Transaction).filter(Transaction.id == transaction_id, Transaction.status == "pending", Transaction.type == "transfer").first()
     if not tx:
         raise HTTPException(status_code=404, detail="Pending transaction not found")
@@ -176,7 +140,7 @@ def reject_transfer(transaction_id: int, db: Session = Depends(get_db), current_
     return {"message": "Transfer rejected. Money returned to sender.", "transaction_id": tx.id}
 
 @router.get("/history/{wallet_id}", response_model=List[TransactionResponse])
-def get_transaction_history(wallet_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_transaction_history(wallet_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_allow_blocked)):
     wallet = db.query(Wallet).filter(Wallet.id == wallet_id, Wallet.user_id == current_user.id).first()
     if not wallet:
         raise HTTPException(
