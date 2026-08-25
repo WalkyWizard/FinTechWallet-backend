@@ -1,8 +1,8 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from decimal import Decimal
 
 class WalletCreate(BaseModel):
-    wallet_address: str
+    wallet_address: str = Field(min_length=16, max_length=16)
     name: str
 
 class WalletResponse(BaseModel):

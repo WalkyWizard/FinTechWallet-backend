@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, CheckConstraint, func
 from sqlalchemy.orm import relationship
 from app.database.session import Base
 from datetime import datetime
@@ -31,6 +31,10 @@ class Wallet(Base):
     balance = Column(Numeric(precision=18, scale=8), nullable=False, default=0)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     owner = relationship("User", back_populates="wallets")
+
+    __table_args__ = (
+        CheckConstraint(func.length(wallet_address) == 16, name="check_wallet_address_length_16"),
+    )
 
 class Transaction(Base):
     __tablename__ = "transactions"
