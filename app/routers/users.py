@@ -44,12 +44,6 @@ def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
 
-    if user.status == "blocked":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User is blocked"
-        )
-
     token_data = {"sub": str(user.id), "email": user.email, "role": user.role}
     access_token = create_access_token(token_data)
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}

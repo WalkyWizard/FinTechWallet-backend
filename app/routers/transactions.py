@@ -2,16 +2,24 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
 from typing import List
+from decimal import Decimal
 from app.database.session import get_db
 from app.database.models import User, Wallet, Transaction
 from app.schemas.transactions import TransactionRequest, TransactionResponse, TransferRequest
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
+FEE_PERCENT = Decimal("0.02")
 
 @router.post("/deposit", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 def deposit_funds(data: TransactionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     wallet = db.query(Wallet).filter(Wallet.id == data.wallet_id, Wallet.user_id == current_user.id).first()
+
+    if current_user.status == "blocked":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked"
+        )
 
     if not wallet:
         raise HTTPException(
@@ -36,19 +44,28 @@ def deposit_funds(data: TransactionRequest, db: Session = Depends(get_db), curre
 def withdraw_funds(data: TransactionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     wallet = db.query(Wallet).filter(Wallet.id == data.wallet_id, Wallet.user_id == current_user.id).first()
 
+    if current_user.status == "blocked":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked"
+        )
+
     if not wallet:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Wallet not found or does not belong to you"
         )
 
-    if wallet.balance < data.amount:
+    fee = data.amount * FEE_PERCENT
+    total = data.amount + fee
+
+    if wallet.balance < total:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Insufficient balance"
+            detail=f"Insufficient balance. Total needed with 2% fee: {total}"
         )
 
-    wallet.balance -= data.amount
+    wallet.balance -= total
     transaction = Transaction(
         type="withdraw",
         amount=data.amount,
@@ -65,18 +82,28 @@ def withdraw_funds(data: TransactionRequest, db: Session = Depends(get_db), curr
 def initiate_transfer(data: TransferRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     sender_wallet = db.query(Wallet).filter(Wallet.id == data.sender_wallet_id, Wallet.user_id == current_user.id).first()
 
+    if current_user.status == "blocked":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked"
+        )
+
     if not sender_wallet:
         raise HTTPException(status_code=404, detail="Sender wallet not found")
     if sender_wallet.wallet_address == data.receiver_address:
         raise HTTPException(status_code=400, detail="Cannot transfer to the same wallet")
-    if sender_wallet.balance < data.amount:
-        raise HTTPException(status_code=400, detail="Not enough money")
+
+    fee = data.amount * FEE_PERCENT
+    total = data.amount + fee
+
+    if sender_wallet.balance < total:
+        raise HTTPException(status_code=400, detail=f"Not enough money. Total needed with 2% fee: {total}")
 
     receiver_wallet = db.query(Wallet).filter(Wallet.wallet_address == data.receiver_address).first()
     if not receiver_wallet:
         raise HTTPException(status_code=404, detail="Receiver wallet not found")
 
-    sender_wallet.balance -= data.amount
+    sender_wallet.balance -= total
     transaction = Transaction(
         type="transfer",
         amount=data.amount,
@@ -92,12 +119,24 @@ def initiate_transfer(data: TransferRequest, db: Session = Depends(get_db), curr
 
 @router.get("/pending", response_model=List[TransactionResponse])
 def get_pending_transfers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.status == "blocked":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked"
+        )
+
     user_addresses = [wallet.wallet_address for wallet in current_user.wallets]
     pending = db.query(Transaction).filter(Transaction.receiver.in_(user_addresses), Transaction.status == "pending", Transaction.type == "transfer").all()
     return pending
 
 @router.post("/{transaction_id}/accept")
 def accept_transfer(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.status == "blocked":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked"
+        )
+
     tx = db.query(Transaction).filter(Transaction.id == transaction_id, Transaction.status == "pending", Transaction.type == "transfer").first()
     if not tx:
         raise HTTPException(status_code=404, detail="Pending transaction not found")
@@ -113,6 +152,12 @@ def accept_transfer(transaction_id: int, db: Session = Depends(get_db), current_
 
 @router.post("/{transaction_id}/reject")
 def reject_transfer(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.status == "blocked":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked"
+        )
+
     tx = db.query(Transaction).filter(Transaction.id == transaction_id, Transaction.status == "pending", Transaction.type == "transfer").first()
     if not tx:
         raise HTTPException(status_code=404, detail="Pending transaction not found")
@@ -123,7 +168,8 @@ def reject_transfer(transaction_id: int, db: Session = Depends(get_db), current_
 
     sender_wallet = db.query(Wallet).filter(Wallet.wallet_address == tx.sender).first()
     if sender_wallet:
-        sender_wallet.balance += tx.amount
+        refund_amount = tx.amount + (tx.amount * FEE_PERCENT)
+        sender_wallet.balance += refund_amount
 
     tx.status = "failed"
     db.commit()

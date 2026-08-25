@@ -17,6 +17,12 @@ def create_wallet(wallet_data: WalletCreate, db: Session = Depends(get_db), curr
             detail="Wallet with this address already exists"
         )
 
+    if current_user.status == "blocked":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked"
+        )
+
     new_wallet = Wallet(
         wallet_address=wallet_data.wallet_address,
         name=wallet_data.name,
