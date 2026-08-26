@@ -15,7 +15,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    name = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, index=True, nullable=False)
     role = Column(String, default=UserRole.CUSTOMER, nullable=False)
     status = Column(String, default="active", nullable=False)  # active or blocked
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
