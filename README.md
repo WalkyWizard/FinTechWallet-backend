@@ -38,7 +38,7 @@ http://localhost:5173
 http://localhost:5173/docs
 ```
 
-## Полезные команды
+## Полезные факты
 
 В цьому Fast API є такі ендпоіти:
 1. Auth
