@@ -23,3 +23,9 @@ def get_withdraw(db: Session = Depends(get_db)):
     if total_amount is None:
         total_amount = Decimal("0.00")
     return {"total" : total_amount}
+
+@router.get("/users/time", response_model=dict)
+def get_user_time(db: Session = Depends(get_db)):
+    times = db.query(User.created_at).filter(User.role != UserRole.ADMIN).all()
+    created_dates = [record[0] for record in times]
+    return {"created_at_list": created_dates}
