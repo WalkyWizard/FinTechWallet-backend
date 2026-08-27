@@ -125,7 +125,7 @@ class TestTransactionsEndpoints(unittest.TestCase):
         tx_id = res_init.json()["id"]
         self.assertEqual(res_init.json()["status"], "pending")
 
-        res_pending = self.client.get("/transactions/pending", headers=self.headers_user2)
+        res_pending = self.client.get(f"/transactions/pending/{self.wallet2_id}", headers=self.headers_user2)
         self.assertEqual(res_pending.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res_pending.json()), 1)
         self.assertEqual(res_pending.json()[0]["id"], tx_id)
@@ -182,6 +182,11 @@ class TestTransactionsEndpoints(unittest.TestCase):
         res_trans = self.client.get(f"/transactions/history/{self.wallet1_id}?tran_type=transfer", headers=self.headers_user1)
         self.assertEqual(res_trans.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res_trans.json()), 0)
+
+    def test_get_pending_transfers_wallet_not_found(self):
+        response = self.client.get(f"/transactions/pending/{self.wallet1_id}", headers=self.headers_user2)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["detail"], "Wallet not found or does not belong to you")
 
 
 if __name__ == "__main__":

@@ -106,12 +106,17 @@ def initiate_transfer(data: TransferRequest, db: Session = Depends(get_db), curr
     db.refresh(transaction)
     return transaction
 
-@router.get("/pending", response_model=List[TransactionResponse])
-def get_pending_transfers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    user_addresses = [wallet.wallet_address for wallet in current_user.wallets]
-    pending = db.query(Transaction).filter(Transaction.receiver.in_(user_addresses), Transaction.status == "pending", Transaction.type == "transfer").all()
-    return pending
+@router.get("/pending/{wallet_id}", response_model=List[TransactionResponse])
+def get_pending_transfers(wallet_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    wallet = db.query(Wallet).filter(Wallet.id == wallet_id, Wallet.user_id == current_user.id).first()
+    if not wallet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wallet not found or does not belong to you"
+        )
 
+    pending = db.query(Transaction).filter(Transaction.receiver == wallet.wallet_address, Transaction.status == "pending", Transaction.type == "transfer").all()
+    return pending
 @router.post("/{transaction_id}/accept")
 def accept_transfer(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     tx = db.query(Transaction).filter(Transaction.id == transaction_id, Transaction.status == "pending", Transaction.type == "transfer").first()
