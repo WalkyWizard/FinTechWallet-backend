@@ -9,6 +9,7 @@ from app.schemas.users import UserResponse
 from app.dependencies import get_current_admin_user
 from app.database.models import Transaction
 from app.schemas.transactions import TransactionResponse
+from app.schemas.wallets import WalletResponse
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(get_current_admin_user)])
 
@@ -80,3 +81,18 @@ def get_all_transactions(tran_type: TransactionTypeFilter = Query(TransactionTyp
         )
     transactions = query.order_by(desc(Transaction.created_at)).all()
     return transactions
+
+@router.get("/user/wallets", response_model=List[WalletResponse])
+def get_user_wallets(user_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {user_id} not found"
+        )
+    if user.role == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You can not see admins wallets"
+        )
+    return user.wallets

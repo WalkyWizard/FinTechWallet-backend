@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
 from typing import List
+from enum import Enum
 from decimal import Decimal
 from app.database.session import get_db
 from app.database.models import User, Wallet, Transaction
@@ -10,6 +11,12 @@ from app.dependencies import get_current_user, get_current_user_allow_blocked
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 FEE_PERCENT = Decimal("0.02")
+
+class TransactionTypeFilter(str, Enum):
+    all = "all"
+    deposit = "deposit"
+    withdraw = "withdraw"
+    transfer = "transfer"
 
 @router.post("/deposit", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 def deposit_funds(data: TransactionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -140,7 +147,7 @@ def reject_transfer(transaction_id: int, db: Session = Depends(get_db), current_
     return {"message": "Transfer rejected. Money returned to sender.", "transaction_id": tx.id}
 
 @router.get("/history/{wallet_id}", response_model=List[TransactionResponse])
-def get_transaction_history(wallet_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_allow_blocked)):
+def get_transaction_history(wallet_id: int, tran_type: TransactionTypeFilter = Query(TransactionTypeFilter.all), db: Session = Depends(get_db), current_user: User = Depends(get_current_user_allow_blocked)):
     wallet = db.query(Wallet).filter(Wallet.id == wallet_id, Wallet.user_id == current_user.id).first()
     if not wallet:
         raise HTTPException(
@@ -148,5 +155,9 @@ def get_transaction_history(wallet_id: int, db: Session = Depends(get_db), curre
             detail="Wallet not found or does not belong to you"
         )
 
-    transactions = db.query(Transaction).filter(or_(Transaction.sender == wallet.wallet_address, Transaction.receiver == wallet.wallet_address)).order_by(desc(Transaction.created_at))
+    query = db.query(Transaction).filter(or_(Transaction.sender == wallet.wallet_address, Transaction.receiver == wallet.wallet_address))
+    if tran_type != TransactionTypeFilter.all:
+        query = query.filter(Transaction.type == tran_type.value)
+
+    transactions = query.order_by(desc(Transaction.created_at)).all()
     return transactions
