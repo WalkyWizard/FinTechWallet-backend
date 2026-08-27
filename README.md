@@ -1,3 +1,45 @@
+# FinTechWallet-backend
+
+## Как открыть проект локально
+
+1. Перейдите в папку проекта:
+
+```bash
+cd FinTechWallet-backend
+```
+
+2. Установите requirements.txt:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Запустите многоконтейнерное приложение в фоновом режиме:
+
+```bash
+docker compose up -d
+```
+
+   Если репозиторий был обновлен, желательно сделать перед предыдущей командой:
+
+```bash
+docker compose down -v 
+```
+
+4. Откройте в браузере адрес, который появится в терминале. Обычно это:
+
+```text
+http://localhost:5173
+```
+
+5. Допишите в конце url /docs для просмотра Swagger:
+
+```text
+http://localhost:5173/docs
+```
+
+## Полезные команды
+
 В цьому Fast API є такі ендпоіти:
 1. Auth
    1. POST auth/register - регістрація нового акаунту
