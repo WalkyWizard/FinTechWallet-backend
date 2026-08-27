@@ -56,9 +56,15 @@ http://localhost:5173/docs
    4. GET /transactions/pending - виведення всіх надісланих переказів до гаманця
    5. POST /transactions/{transaction_id}/accept - підтвердження надісланого переказу
    6. POST /transactions/{transaction_id}/reject - відхилення надісланого переказу
-   7. GET /transactions/history/{wallet_id} - виведення історії транзакцій гаманця
+   7. GET /transactions/history/{wallet_id} - виведення історії транзакцій гаманця (з фільтром по типу транзакції)
 4. Admin (доступ мають тільки адміни)
    1. GET /admin/users - отримання списку всіх користувачів (окрім адмінів)
    2. POST /admin/block - заблокувати акаунт користувача
    3. POST /admin/unblock - розблокувати акаунт користувача
    4. GET /admin/transactions - отримання списку усіх транзакцій (з фільтром по типу транзакції та по користувачу)
+   5. GET /admin/user/wallets - отримання гаманців конкретного користувача
+5. Dashboard
+   1. GET /dashboard/clients - отримання кількості зареєстрованих користувачів
+   2. GET /dashboard/transactions - отримання кількості всіх успішних транзакцій
+   3. GET /dashboard/withdraw - отримання кількості всіх виведених коштів
+   4. GET /dashboard/user/time - отримання всіх таймкодів, коли були зареєстровані користувачі (для діаграми)
