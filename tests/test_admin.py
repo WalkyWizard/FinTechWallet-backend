@@ -144,6 +144,25 @@ class TestAdminEndpoints(unittest.TestCase):
         self.assertEqual(res_user.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res_user.json()), 1)
 
+    def test_get_user_wallets_success(self):
+        response = self.client.get(f"/admin/user/wallets?user_id={self.customer_id}", headers=self.admin_headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        wallets = response.json()
+        self.assertEqual(len(wallets), 1)
+        self.assertEqual(wallets[0]["wallet_address"], "1111222233334444")
+        self.assertEqual(wallets[0]["user_id"], self.customer_id)
+
+    def test_get_user_wallets_forbidden_for_admin_target(self):
+        response = self.client.get(f"/admin/user/wallets?user_id={self.other_admin_id}", headers=self.admin_headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["detail"], "You can not see admins wallets")
+
+    def test_get_user_wallets_user_not_found(self):
+        response = self.client.get("/admin/user/wallets?user_id=9999", headers=self.admin_headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["detail"], "User with id 9999 not found")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -159,13 +159,29 @@ class TestTransactionsEndpoints(unittest.TestCase):
         self.assertEqual(receiver.balance, Decimal("0.00"))
         db.close()
 
-    def test_get_history_success(self):
+    def test_get_history_with_filters(self):
         self.client.post("/transactions/deposit", json={"wallet_id": self.wallet1_id, "amount": 25.00}, headers=self.headers_user1)
-        response = self.client.get(f"/transactions/history/{self.wallet1_id}", headers=self.headers_user1)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertGreaterEqual(len(data), 1)
-        self.assertEqual(data[0]["receiver"], self.wallet1_address)
+        self.client.post("/transactions/withdraw", json={"wallet_id": self.wallet1_id, "amount": 10.00}, headers=self.headers_user1)
+
+        res_all = self.client.get(f"/transactions/history/{self.wallet1_id}", headers=self.headers_user1)
+        self.assertEqual(res_all.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_all.json()), 2)
+
+        res_dep = self.client.get(f"/transactions/history/{self.wallet1_id}?tran_type=deposit", headers=self.headers_user1)
+        self.assertEqual(res_dep.status_code, status.HTTP_200_OK)
+        data_dep = res_dep.json()
+        self.assertEqual(len(data_dep), 1)
+        self.assertEqual(data_dep[0]["type"], "deposit")
+
+        res_with = self.client.get(f"/transactions/history/{self.wallet1_id}?tran_type=withdraw", headers=self.headers_user1)
+        self.assertEqual(res_with.status_code, status.HTTP_200_OK)
+        data_with = res_with.json()
+        self.assertEqual(len(data_with), 1)
+        self.assertEqual(data_with[0]["type"], "withdraw")
+
+        res_trans = self.client.get(f"/transactions/history/{self.wallet1_id}?tran_type=transfer", headers=self.headers_user1)
+        self.assertEqual(res_trans.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_trans.json()), 0)
 
 
 if __name__ == "__main__":
